@@ -98,7 +98,48 @@ Resources:
                   "Message.$": "$.Payload.body"
                 },
                 "ResultPath": "$.LambdaResult",
-                "End": true
+                "Next": "LambdaResultCheck",
+                "Catch": [
+                  {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.Error",
+                    "Next": "RollBackUpdate"
+                  }
+                ]
+              },
+              "LambdaResultCheck": {
+                "Type": "Choice",
+                "Choices": [
+                  {
+                    "Variable": "$.StatusCode",
+                    "NumericEquals": 200,
+                    "Next": "Success"
+                  }
+                ],
+                "Default": "RollBackUpdate"
+              },
+              "Success": {
+                "Type": "Succeed"
+              },
+              "RollBackUpdate": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::dynamodb:deleteItem",
+                "Parameters": {
+                  "TableName": "OrdersTable",
+                  "Key": {
+                    "PK": {
+                      "S.$": "$.DDBOutput.PK.S"
+                    },
+                    "SK": {
+                      "S.$": "$.DDBOutput.SK.S"
+                    }
+                  },
+                  "ReturnValues": "ALL_OLD"
+                },
+                "Next": "FailState"
+              },
+              "FailState": {
+                "Type": "Fail"
               }
             }
           }
