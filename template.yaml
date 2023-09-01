@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambdaHandler
+      Role: !GetAtt [LambdaExecutionRole, Arn]
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+
+  StatesExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt DDBTable.Arn
+
+  StateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt [StatesExecutionRole, Arn]
+      DefinitionString: |
+        {
+          "StartAt": "InsertRecord",
+          "States": {
+            "InsertRecord": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::dynamodb:updateItem",
+              "Parameters": {
+                "TableName": "OrdersTable",
+                "Key": {
+                  "PK": {
+                    "S.$": "$.PK"
+                  },
+                  "SK": {
+                    "S.$": "$.SK"
+                  }
+                },
+                "UpdateExpression": "SET PK = :PK, SK = :SK",
+                "ExpressionAttributeValues": {
+                  ":PK": {
+                    "S.$": "$.PK"
+                  },
+                  ":SK": {
+                    "S.$": "$.SK"
+                  }
+                },
+                "ConditionExpression": "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+                "ReturnValues": "UPDATED_NEW"
+              },
+              "ResultPath": "$.InsertResult",
+              "End": true
+            }
+          }
+        }
+
+  DDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: OrdersTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
