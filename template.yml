@@ -6,23 +6,11 @@ Globals:
     Timeout: 3
 
 Resources:
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-
   PaymentFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
       Handler: app.lambdaHandler
-      Role: !GetAtt [LambdaExecutionRole, Arn]
       Runtime: nodejs18.x
       Architectures:
         - x86_64
