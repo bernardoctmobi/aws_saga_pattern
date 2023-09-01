@@ -81,6 +81,10 @@ Resources:
                   },
                   "ReturnValues": "ALL_NEW"
                 },
+                "ResultSelector": {
+                  "DDBOutput.$": "$.Attributes",
+                  "StatusCode.$": "$.SdkHttpMetadata.HttpStatusCode"
+                },
                 "Next": "PaymentLambda"
               },
               "PaymentLambda": {
@@ -89,6 +93,11 @@ Resources:
                 "Parameters": {
                   "FunctionName": "${PaymentFunction}"
                 },
+                "ResultSelector": {
+                  "StatusCode.$": "$.Payload.statusCode",
+                  "Message.$": "$.Payload.body"
+                },
+                "ResultPath": "$.LambdaResult",
                 "End": true
               }
             }
