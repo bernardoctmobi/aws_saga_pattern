@@ -15,45 +15,45 @@ Resources:
       Architectures:
         - x86_64
 
-  StatesExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - !Sub states.${AWS::Region}.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: StatesDDBPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dynamodb:UpdateItem
-                  - dynamodb:DeleteItem
-                Resource: !GetAtt DDBTable.Arn
-        - PolicyName: StatesLambdaPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource: !GetAtt PaymentFunction.Arn
+  # StatesExecutionRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     AssumeRolePolicyDocument:
+  #       Version: "2012-10-17"
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service:
+  #               - !Sub states.${AWS::Region}.amazonaws.com
+  #           Action: sts:AssumeRole
+  #     Policies:
+  #       - PolicyName: StatesDDBPolicy
+  #         PolicyDocument:
+  #           Version: "2012-10-17"
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - dynamodb:UpdateItem
+  #                 - dynamodb:DeleteItem
+  #               Resource: !GetAtt DDBTable.Arn
+  #       - PolicyName: StatesLambdaPolicy
+  #         PolicyDocument:
+  #           Version: "2012-10-17"
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - lambda:InvokeFunction
+  #               Resource: !GetAtt PaymentFunction.Arn
 
   StateMachine:
-    Type: AWS::StepFunctions::StateMachine
+    Type: AWS::Serverless::StateMachine
     Properties:
-      RoleArn: !GetAtt [StatesExecutionRole, Arn]
-      Definition:
-        "Fn::Transform":
-          Name: AWS::Include
-          Parameters:
-            Location: ./StepFunction.json
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DDBTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PaymentFunction
+      DefinitionUri: ./stateMachine.yaml
 
   DDBTable:
     Type: AWS::DynamoDB::Table
